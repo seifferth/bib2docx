@@ -1,0 +1,100 @@
+#!/bin/sh
+
+bibfiles=""
+add_bibfile() {
+    if [ "$fallback_filename" = "" ]; then
+        fallback_filename="$(echo $1 | sed 's,\.[^.]*$,,g')"
+    fi
+    if [ ! -f "$1" ]; then
+        echo "File not found: $1" >&2
+        exit 1
+    fi
+    bibfiles="$bibfiles  - $1\\n"
+}
+
+author=""
+add_author() {
+    author="$author  - $1\\n"
+}
+
+print_help() {
+cat <<EOF
+Usage: bib2docx [options] <files>
+
+Options:
+      --title     Title for the output bibliography
+      --author    Author of this bibliography (may be specified
+                  multiple times for multiple authors)
+      --date      Date for the output bibliography
+      --lang      Specify a language for the output bibliography
+      --csl       Citation style to use in output bibliography
+  -o  --output    Specify a name for the output file
+  -h  --help      Print this help message and exit
+
+EOF
+}
+
+if [ "$#" = 0 ]; then
+    print_help
+    exit 1
+fi
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --author )
+            add_author "$2"
+            shift 2     ;;
+        --title )
+            title="$2"
+            shift 2     ;;
+        --date )
+            date="$2"
+            shift 2     ;;
+        --csl )
+            csl="$2"
+            shift 2     ;;
+        --lang )
+            lang="$2"
+            shift 2     ;;
+        -o | --output )
+            output="$2"
+            shift 2     ;;
+        -h | --help )
+            print_help
+            exit 0      ;;
+        -- )
+            shift       ;;
+        * )
+            add_bibfile "$1"
+            shift       ;;
+    esac
+done
+
+
+if [ "$bibfiles" = "" ]; then
+    echo "No biblioraphy specified. Aborting!" >&2
+    exit 1
+fi
+if [ "$output" = "" ]; then
+    output="$fallback_filename.docx"
+fi
+if [ "$lang" = "" ]; then
+    lang="$(echo $LANG | sed 's,_.*$,,g')"
+fi
+
+cat <<EOF | pandoc -F pandoc-citeproc -t docx -o "$output"
+---
+title: $title
+author:
+$(printf "$author")
+date: $date
+csl: $csl
+lang: $lang
+nocite: |
+    @*
+bibliography:
+$(printf "$bibfiles")
+...
+
+&nbsp;
+EOF
