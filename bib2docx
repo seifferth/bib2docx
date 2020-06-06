@@ -35,7 +35,7 @@ EOF
 }
 
 if [ "$#" = 0 ]; then
-    print_help
+    print_help >&2
     exit 1
 fi
 
